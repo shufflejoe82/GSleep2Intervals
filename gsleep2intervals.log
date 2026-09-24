@@ -1,0 +1,20 @@
+2026-09-24 16:16:22,317 - INFO - Loading configuration...
+2026-09-24 16:16:23,300 - WARNING - mobile+cffi returned 429: GarminConnectTooManyRequestsError: Mobile login returned 429 — IP rate limited by Garmin
+2026-09-24 16:16:23,440 - WARNING - mobile+requests returned 429: GarminConnectTooManyRequestsError: Mobile login returned 429 — IP rate limited by Garmin
+2026-09-24 16:16:29,813 - WARNING - widget+cffi failed: GarminConnectConnectionError: Widget login: unexpected title 'GARMIN Authentication Application'
+2026-09-24 16:16:30,200 - INFO - Portal login: waiting 17s to avoid Cloudflare rate limiting...
+2026-09-24 16:16:48,169 - INFO - Portal login: waiting 19s to avoid Cloudflare rate limiting...
+2026-09-24 16:17:07,509 - INFO - Portal login: waiting 10s to avoid Cloudflare rate limiting...
+2026-09-24 16:17:18,154 - WARNING - portal+cffi returned 429: GarminConnectTooManyRequestsError: Portal login GET returned 429 — Cloudflare blocking this request.
+2026-09-24 16:17:18,177 - WARNING - portal+requests returned 429: GarminConnectTooManyRequestsError: Portal login GET returned 429 — Cloudflare blocking this request.
+2026-09-24 16:17:18,177 - WARNING - Rate limited. Retrying in 60 seconds...
+2026-09-24 16:18:18,243 - WARNING - mobile+cffi returned 429: GarminConnectTooManyRequestsError: Mobile login returned 429 — IP rate limited by Garmin
+2026-09-24 16:18:18,269 - WARNING - mobile+requests returned 429: GarminConnectTooManyRequestsError: Mobile login returned 429 — IP rate limited by Garmin
+2026-09-24 16:18:18,286 - WARNING - widget+cffi returned 429: GarminConnectTooManyRequestsError: Widget embed GET returned 429
+2026-09-24 16:18:18,397 - WARNING - portal+cffi returned 429: GarminConnectTooManyRequestsError: Portal login GET returned 429 — Cloudflare blocking this request.
+2026-09-24 16:18:18,426 - INFO - Portal login: waiting 13s to avoid Cloudflare rate limiting...
+2026-09-24 16:18:31,519 - WARNING - portal+requests failed: GarminConnectConnectionError: Portal login: HTTP 403 (Cloudflare bot challenge) — falling through to next strategy
+2026-09-24 16:18:31,519 - ERROR - Garmin Connect connection error: Login failed: All login strategies exhausted: GarminConnectConnectionError: Portal login: HTTP 403 (Cloudflare bot challenge) — falling through to next strategy
+2026-09-24 16:18:31,519 - ERROR - Failed to authenticate with Garmin Connect: Garmin Connect connection failed: Login failed: All login strategies exhausted: GarminConnectConnectionError: Portal login: HTTP 403 (Cloudflare bot challenge) — falling through to next strategy
+2026-09-24 16:18:31,519 - ERROR - Credentials error: Garmin Connect authentication failed: Garmin Connect connection failed: Login failed: All login strategies exhausted: GarminConnectConnectionError: Portal login: HTTP 403 (Cloudflare bot challenge) — falling through to next strategy
+2026-09-24 16:18:31,519 - INFO - Garmin Connect session closed

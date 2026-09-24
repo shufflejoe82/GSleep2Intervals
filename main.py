@@ -43,31 +43,62 @@ class APIError(Exception):
 class GarminConnectClient:
     """Client for fetching data from Garmin Connect."""
     
-    def __init__(self, email: str, password: str):
+    def __init__(self, email: str, password: str, api_version: str = '2.0'):
         """
         Initialize Garmin Connect client.
         
-        Note: This is a placeholder. In production, use the python-garminconnect
-        library or implement proper OAuth2 flow.
+        Args:
+            email: Garmin Connect email
+            password: Garmin Connect password
+            api_version: Garmin Connect API version (default: '2.0')
         """
         self.email = email
         self.password = password
-        self.session = None
+        self.api_version = api_version
+        self.client = None
         self._authenticated = False
     
     def authenticate(self):
         """Authenticate with Garmin Connect."""
         try:
-            # Import here to avoid dependency issues if not using garminconnect
-            from garminconnect import Garmin
+            from garminconnect import (
+                Garmin,
+                GarminConnectAuthenticationError,
+                GarminConnectConnectionError,
+                GarminConnectTooManyRequestsError,
+            )
             
+            # Initialize Garmin client
             self.client = Garmin(self.email, self.password)
-            self.client.login()
-            self._authenticated = True
-            logger.info("Successfully authenticated with Garmin Connect")
+            
+            # Try to login with retry logic for rate limiting
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    self.client.login()
+                    self._authenticated = True
+                    logger.info("Successfully authenticated with Garmin Connect")
+                    return
+                except GarminConnectTooManyRequestsError:
+                    if attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 60
+                        logger.warning(f"Rate limited. Retrying in {wait_time} seconds...")
+                        import time
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        raise
+                except GarminConnectAuthenticationError as e:
+                    logger.error(f"Garmin Connect authentication failed: {e}")
+                    raise CredentialsError(f"Garmin Connect authentication failed: {e}")
+                except GarminConnectConnectionError as e:
+                    logger.error(f"Garmin Connect connection error: {e}")
+                    raise CredentialsError(f"Garmin Connect connection failed: {e}")
+            
         except ImportError:
-            logger.warning("python-garminconnect not available. Using mock data.")
-            self._authenticated = False
+            logger.error("garminconnect package is not installed.")
+            logger.error("Please install it with: pip install garminconnect")
+            raise CredentialsError("garminconnect package is required")
         except Exception as e:
             logger.error(f"Failed to authenticate with Garmin Connect: {e}")
             raise CredentialsError(f"Garmin Connect authentication failed: {e}")
@@ -83,19 +114,23 @@ class GarminConnectClient:
             Dictionary containing sleep data or None if not available
         """
         if not self._authenticated:
-            # Return mock data for testing
-            return self._get_mock_sleep_data(date_str)
+            logger.error("Not authenticated with Garmin Connect")
+            return None
         
         try:
-            # Parse date
-            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-            
-            # Fetch sleep data from Garmin Connect
-            # Note: The actual python-garminconnect API may differ
-            sleep_data = self.client.get_sleep_data(date_obj)
+            # The garminconnect library expects date as string in YYYY-MM-DD format
+            sleep_data = self.client.get_sleep_data(date_str)
             
             if sleep_data and 'dailySleepDTO' in sleep_data:
                 return self._parse_sleep_data(sleep_data)
+            elif sleep_data and 'sleep' in sleep_data:
+                # Alternative response format
+                return self._parse_sleep_data({'dailySleepDTO': sleep_data['sleep']})
+            elif sleep_data:
+                # Try to handle different response formats
+                return self._parse_sleep_data({'dailySleepDTO': sleep_data})
+            
+            logger.debug(f"No sleep data found for {date_str}")
             return None
         except Exception as e:
             logger.error(f"Failed to fetch sleep data for {date_str}: {e}")
@@ -181,19 +216,126 @@ class GarminConnectClient:
             Dictionary containing wellness data or None if not available
         """
         if not self._authenticated:
-            # Return mock data for testing
-            return self._get_mock_wellness_data(date_str)
+            logger.error("Not authenticated with Garmin Connect")
+            return None
         
         try:
-            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-            wellness_data = self.client.get_wellness_data(date_obj)
+            # Get wellness/body battery data
+            wellness_data = {}
+            
+            # Try to get body battery data (requires start and end date)
+            try:
+                body_battery = self.client.get_body_battery(date_str, date_str)
+                if body_battery:
+                    wellness_data['bodyBattery'] = self._parse_body_battery(body_battery)
+            except Exception as e:
+                logger.debug(f"Could not fetch body battery for {date_str}: {e}")
+            
+            # Try to get stress data
+            try:
+                stress = self.client.get_stress_data(date_str)
+                if stress:
+                    wellness_data['stress'] = self._parse_stress(stress)
+            except Exception as e:
+                logger.debug(f"Could not fetch stress data for {date_str}: {e}")
+            
+            # Try to get HRV data
+            try:
+                hrv = self.client.get_hrv_data(date_str)
+                if hrv:
+                    wellness_data['hrv'] = self._parse_hrv(hrv)
+            except Exception as e:
+                logger.debug(f"Could not fetch HRV data for {date_str}: {e}")
+            
+            # Try to get SpO2 data
+            try:
+                spo2 = self.client.get_spo2_data(date_str)
+                if spo2:
+                    wellness_data['spo2'] = self._parse_spo2(spo2)
+            except Exception as e:
+                logger.debug(f"Could not fetch SpO2 data for {date_str}: {e}")
             
             if wellness_data:
-                return self._parse_wellness_data(wellness_data)
+                return wellness_data
             return None
         except Exception as e:
             logger.error(f"Failed to fetch wellness data for {date_str}: {e}")
             return None
+    
+    def _parse_body_battery(self, raw_data: Any) -> Dict[str, Any]:
+        """Parse body battery data from Garmin Connect."""
+        result = {}
+        
+        if isinstance(raw_data, dict):
+            result['current'] = raw_data.get('current', raw_data.get('value', 0))
+            result['min'] = raw_data.get('min', 0)
+            result['max'] = raw_data.get('max', 0)
+            result['timestamp'] = raw_data.get('timestamp', 0)
+        elif isinstance(raw_data, list) and raw_data:
+            # Handle list of body battery readings
+            values = [item.get('value', 0) for item in raw_data if isinstance(item, dict)]
+            result['current'] = values[-1] if values else 0
+            result['min'] = min(values) if values else 0
+            result['max'] = max(values) if values else 0
+            result['timestamp'] = raw_data[-1].get('timestamp', 0) if raw_data else 0
+        
+        return result
+    
+    def _parse_stress(self, raw_data: Any) -> Dict[str, Any]:
+        """Parse stress data from Garmin Connect."""
+        result = {}
+        
+        if isinstance(raw_data, dict):
+            result['resting'] = raw_data.get('restingStress', raw_data.get('rest', 0))
+            result['average'] = raw_data.get('averageStress', raw_data.get('average', 0))
+            result['max'] = raw_data.get('maxStress', raw_data.get('max', 0))
+            result['timestamp'] = raw_data.get('timestamp', 0)
+        elif isinstance(raw_data, list) and raw_data:
+            # Handle list of stress readings
+            values = [item.get('value', 0) for item in raw_data if isinstance(item, dict)]
+            result['average'] = sum(values) / len(values) if values else 0
+            result['min'] = min(values) if values else 0
+            result['max'] = max(values) if values else 0
+            result['timestamp'] = raw_data[-1].get('timestamp', 0) if raw_data else 0
+        
+        return result
+    
+    def _parse_hrv(self, raw_data: Any) -> Dict[str, Any]:
+        """Parse HRV data from Garmin Connect."""
+        result = {}
+        
+        if isinstance(raw_data, dict):
+            result['restingHeartRate'] = raw_data.get('restingHeartRate', raw_data.get('restHR', 0))
+            result['hrvValue'] = raw_data.get('hrvValue', raw_data.get('value', 0))
+            result['timestamp'] = raw_data.get('timestamp', 0)
+        elif isinstance(raw_data, list) and raw_data:
+            # Handle list of HRV readings
+            hrv_values = [item.get('hrvValue', item.get('value', 0)) for item in raw_data if isinstance(item, dict)]
+            rest_hr = [item.get('restingHeartRate', item.get('restHR', 0)) for item in raw_data if isinstance(item, dict)]
+            result['restingHeartRate'] = rest_hr[-1] if rest_hr else 0
+            result['hrvValue'] = hrv_values[-1] if hrv_values else 0
+            result['timestamp'] = raw_data[-1].get('timestamp', 0) if raw_data else 0
+        
+        return result
+    
+    def _parse_spo2(self, raw_data: Any) -> Dict[str, Any]:
+        """Parse SpO2 data from Garmin Connect."""
+        result = {}
+        
+        if isinstance(raw_data, dict):
+            result['average'] = raw_data.get('average', raw_data.get('avg', 0))
+            result['min'] = raw_data.get('min', 0)
+            result['max'] = raw_data.get('max', 0)
+            result['timestamp'] = raw_data.get('timestamp', 0)
+        elif isinstance(raw_data, list) and raw_data:
+            # Handle list of SpO2 readings
+            values = [item.get('value', 0) for item in raw_data if isinstance(item, dict)]
+            result['average'] = sum(values) / len(values) if values else 0
+            result['min'] = min(values) if values else 0
+            result['max'] = max(values) if values else 0
+            result['timestamp'] = raw_data[-1].get('timestamp', 0) if raw_data else 0
+        
+        return result
     
     def _get_mock_wellness_data(self, date_str: str) -> Dict[str, Any]:
         """Return mock wellness data for testing purposes."""
