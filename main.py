@@ -136,48 +136,7 @@ class GarminConnectClient:
             logger.error(f"Failed to fetch sleep data for {date_str}: {e}")
             return None
     
-    def _get_mock_sleep_data(self, date_str: str) -> Dict[str, Any]:
-        """Return mock sleep data for testing purposes."""
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-        
-        # Generate mock data
-        sleep_start = datetime.combine(date_obj, datetime.min.time()).timestamp() * 1000
-        sleep_end = datetime.combine(date_obj, datetime.min.time()).timestamp() * 1000 + 8 * 3600 * 1000
-        
-        return {
-            'date': date_str,
-            'sleepTimeSeconds': 8 * 3600,
-            'deepSleepTimeSeconds': 2 * 3600,
-            'lightSleepTimeSeconds': 4 * 3600,
-            'remSleepTimeSeconds': 2 * 3600,
-            'awakeSleepTimeSeconds': 300,
-            'sleepStartTimestamp': sleep_start,
-            'sleepEndTimestamp': sleep_end,
-            'sleepScores': {
-                'overall': 75,
-                'deep': 80,
-                'light': 70,
-                'rem': 75
-            },
-            'stress': {
-                'resting': 30,
-                'average': 40,
-                'max': 60
-            },
-            'hrv': {
-                'restingHeartRate': 55,
-                'hrvValue': 65
-            },
-            'spo2': {
-                'average': 95,
-                'min': 88
-            },
-            'bodyBattery': {
-                'current': 85,
-                'min': 60,
-                'max': 95
-            }
-        }
+
     
     def _parse_sleep_data(self, raw_data: Dict) -> Dict[str, Any]:
         """Parse raw Garmin sleep data into standardized format."""
@@ -337,69 +296,9 @@ class GarminConnectClient:
         
         return result
     
-    def _get_mock_wellness_data(self, date_str: str) -> Dict[str, Any]:
-        """Return mock wellness data for testing purposes."""
-        return {
-            'date': date_str,
-            'stress': {
-                'resting': 30,
-                'average': 40,
-                'max': 60,
-                'timestamp': datetime.now().timestamp() * 1000
-            },
-            'hrv': {
-                'restingHeartRate': 55,
-                'hrvValue': 65,
-                'timestamp': datetime.now().timestamp() * 1000
-            },
-            'spo2': {
-                'average': 95,
-                'min': 88,
-                'timestamp': datetime.now().timestamp() * 1000
-            },
-            'bodyBattery': {
-                'current': 85,
-                'min': 60,
-                'max': 95,
-                'timestamp': datetime.now().timestamp() * 1000
-            }
-        }
+
     
-    def _parse_wellness_data(self, raw_data: Dict) -> Dict[str, Any]:
-        """Parse raw Garmin wellness data into standardized format."""
-        result = {}
-        
-        if 'stress' in raw_data:
-            result['stress'] = {
-                'resting': raw_data['stress'].get('restingStress', 0),
-                'average': raw_data['stress'].get('averageStress', 0),
-                'max': raw_data['stress'].get('maxStress', 0),
-                'timestamp': raw_data['stress'].get('timestamp', 0)
-            }
-        
-        if 'hrv' in raw_data:
-            result['hrv'] = {
-                'restingHeartRate': raw_data['hrv'].get('restingHeartRate', 0),
-                'hrvValue': raw_data['hrv'].get('hrvValue', 0),
-                'timestamp': raw_data['hrv'].get('timestamp', 0)
-            }
-        
-        if 'spo2' in raw_data:
-            result['spo2'] = {
-                'average': raw_data['spo2'].get('average', 0),
-                'min': raw_data['spo2'].get('min', 0),
-                'timestamp': raw_data['spo2'].get('timestamp', 0)
-            }
-        
-        if 'bodyBattery' in raw_data:
-            result['bodyBattery'] = {
-                'current': raw_data['bodyBattery'].get('current', 0),
-                'min': raw_data['bodyBattery'].get('min', 0),
-                'max': raw_data['bodyBattery'].get('max', 0),
-                'timestamp': raw_data['bodyBattery'].get('timestamp', 0)
-            }
-        
-        return result
+
     
     def close(self):
         """Close the client session."""
