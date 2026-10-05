@@ -82,7 +82,7 @@ def build_response(status_code: int, data: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def handler(request: Dict[str, Any]) -> Dict[str, Any]:
+def handler(request: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Vercel Serverless Function handler.
     
